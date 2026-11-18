@@ -1,0 +1,113 @@
+services:
+  postgres_db:
+    image: postgres:16-alpine
+    container_name: studyhub_postgres
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: supersecretpassword
+      POSTGRES_DB: studyhub
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  minio_storage:
+    image: pgsty/minio:latest
+    container_name: studyhub_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: miniosecretpassword
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      default:
+        aliases:
+          - minio-storage
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: studyhub_backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://admin:supersecretpassword@postgres_db:5432/studyhub
+      MINIO_ENDPOINT: minio_storage:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: miniosecretpassword
+      MINIO_BUCKET_NAME: study-files
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres_db:
+        condition: service_started
+      minio_storage:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    container_name: studyhub_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  tunnel_backend:
+    image: cloudflare/cloudflared:latest
+    container_name: studyhub_tunnel_backend
+    command: tunnel --no-autoupdate --url http://studyhub_backend:8000
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  tunnel_frontend:
+    image: cloudflare/cloudflared:latest
+    container_name: studyhub_tunnel_frontend
+    command: tunnel --no-autoupdate --url http://studyhub_frontend:3000
+    depends_on:
+      frontend:
+        condition: service_started
+    restart: unless-stopped
+
+  minio_init:
+    image: pgsty/mc:latest
+    container_name: studyhub_minio_init
+    depends_on:
+      minio_storage:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        until mc alias set local http://minio-storage:9000 minioadmin miniosecretpassword; do
+          echo 'Waiting for MinIO...'; sleep 2;
+        done
+        mc mb --ignore-existing local/study-files
+        mc anonymous set download local/study-files
+        echo 'Bucket study-files is ready with public read access.'
+    restart: "no"
+
+volumes:
+  postgres_data:
+  minio_data:
