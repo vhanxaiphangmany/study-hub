@@ -69,13 +69,8 @@ Never place production secrets in source control, frontend build arguments, or p
 
 ## Screenshots
 
-Add screenshots to `docs/screenshots/` and update these links when available:
-
-![StudyHub dashboard](docs/screenshots/dashboard.png)
-
-![StudyHub quiz player](docs/screenshots/quiz-player.png)
-
-![StudyHub mobile view](docs/screenshots/mobile.png)
+<img width="1900" height="920" alt="Screenshot 2026-11-18 174526" src="https://github.com/user-attachments/assets/6a85c9f2-8f06-4844-b9fb-b920abf86ec3" />
+<img width="1885" height="915" alt="Screenshot 2026-11-18 174537" src="https://github.com/user-attachments/assets/400d103f-b6e9-446a-a4b4-a2ce82d93a73" />
 
 ## Project Structure
 
