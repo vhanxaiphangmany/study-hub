@@ -1,5 +1,7 @@
 import json
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, computed_field, field_validator
+
+from app.core.storage import public_file_url
 
 
 # ---------- Auth ----------
@@ -38,6 +40,11 @@ class FileOut(BaseModel):
     content_type: str | None
     size: int
     model_config = {"from_attributes": True}
+
+    @computed_field
+    @property
+    def file_url(self) -> str:
+        return public_file_url(self.object_name)
 
 
 # ---------- Note ----------

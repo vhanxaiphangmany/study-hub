@@ -2,7 +2,7 @@
 export const API_URL = "";
 
 export type Folder = { id: string; name: string; parent_id: string | null; description: string | null };
-export type FileItem = { id: string; folder_id: string | null; name: string; object_name: string; content_type: string | null; size: number };
+export type FileItem = { id: string; folder_id: string | null; name: string; object_name: string; file_url: string; content_type: string | null; size: number };
 export type Note = { id: string; folder_id: string | null; title: string; content: string };
 export type QuizSummary = { id: string; title: string; description: string | null; time_per_question: number; is_published: boolean; question_count: number };
 export type Question = { id: string; position: number; text: string; choices: string[]; correct_index: number; points: number };

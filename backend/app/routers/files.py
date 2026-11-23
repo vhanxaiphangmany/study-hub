@@ -1,4 +1,5 @@
 import uuid
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File as UploadFileParam, HTTPException, UploadFile
 from fastapi.responses import RedirectResponse
@@ -7,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import require_admin
-from app.core.storage import ensure_bucket, get_s3_client, presigned_get_url
+from app.core.storage import ensure_bucket, get_s3_client, public_file_url
 from app.core.config import settings
 from app.models import File as FileModel, Folder
 from app.schemas import FileOut
@@ -53,7 +54,10 @@ async def download_file(file_id: str, db: AsyncSession = Depends(get_db)):
     f = await db.get(FileModel, file_id)
     if not f:
         raise HTTPException(404, "File not found")
-    return RedirectResponse(f"/storage/{f.object_name}", status_code=307)
+    target_url = public_file_url(f.object_name)
+    if settings.MINIO_PUBLIC_BASE_URL:
+        target_url = f"{target_url}?download={quote(f.name)}"
+    return RedirectResponse(target_url, status_code=307)
 
 
 @router.get("/{file_id}/preview")
@@ -61,7 +65,7 @@ async def preview_file(file_id: str, db: AsyncSession = Depends(get_db)):
     f = await db.get(FileModel, file_id)
     if not f:
         raise HTTPException(404, "File not found")
-    return {"url": f"/storage/{f.object_name}", "content_type": f.content_type, "name": f.name}
+    return {"url": public_file_url(f.object_name), "content_type": f.content_type, "name": f.name, "download_url": public_file_url(f.object_name)}
 
 
 @router.delete("/{file_id}", dependencies=[Depends(require_admin)])
